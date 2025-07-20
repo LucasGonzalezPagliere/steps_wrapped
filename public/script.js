@@ -54,6 +54,11 @@ function isSameOrAfterDate(date1, date2) {
   return normalizeDate(date1) >= normalizeDate(date2);
 }
 
+// Helper function to compare dates ignoring time
+function isBeforeOrEqualDate(date1, date2) {
+  return normalizeDate(date1) <= normalizeDate(date2);
+}
+
 // Helper to format hour range
 function formatHourRange(hour) {
   const start = hour % 12 || 12;
@@ -97,10 +102,17 @@ function findBestMonth(dailySteps) {
     const monthlySteps = {};
     const monthlyDays = {};
     
+    // Only consider complete months
+    const now = new Date();
+    const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+    
     Object.entries(dailySteps).forEach(([date, steps]) => {
       const monthKey = date.slice(0, 7); // YYYY-MM
-      monthlySteps[monthKey] = (monthlySteps[monthKey] || 0) + steps;
-      monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
+      // Skip current month as it might be incomplete
+      if (monthKey !== currentMonth) {
+        monthlySteps[monthKey] = (monthlySteps[monthKey] || 0) + steps;
+        monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
+      }
     });
     
     if (Object.keys(monthlySteps).length === 0) return null;
@@ -247,31 +259,36 @@ fileInput.addEventListener("change", async (e) => {
     
     // Filter and process only step count records from last 12 months
     const now = new Date();
-    const yearAgo = new Date();
+    const today = normalizeDate(now.toISOString());
+    const yearAgo = new Date(now);
     yearAgo.setFullYear(now.getFullYear() - 1);
     yearAgo.setHours(0, 0, 0, 0);
     
     const yearAgoStr = normalizeDate(yearAgo.toISOString());
-    console.log(`Filtering records from ${yearAgoStr}`);
+    console.log(`Filtering records between ${yearAgoStr} and ${today}`);
     
     const stepRecords = records.filter(record => {
       const type = record.getAttribute("type");
       if (type !== STEP_TYPE) return false;
       
       const startDate = record.getAttribute("startDate");
+      const normalizedDate = normalizeDate(startDate);
       const isRecent = isSameOrAfterDate(startDate, yearAgo.toISOString());
+      const isNotFuture = isBeforeOrEqualDate(startDate, now.toISOString());
       
       // Debug log a sample of records
       if (Math.random() < 0.001) {
         console.log('Sample record:', {
           date: startDate,
-          normalizedDate: normalizeDate(startDate),
+          normalizedDate,
           isRecent,
-          yearAgo: yearAgoStr
+          isNotFuture,
+          yearAgo: yearAgoStr,
+          today
         });
       }
       
-      return isRecent;
+      return isRecent && isNotFuture;
     });
     
     console.log(`Found ${stepRecords.length} step records in last year`);
@@ -287,6 +304,7 @@ fileInput.addEventListener("change", async (e) => {
     
     console.log('Daily steps object:', {
       numberOfDays: Object.keys(dailySteps).length,
+      dateRange: `${yearAgoStr} to ${today}`,
       sampleDay: Object.entries(dailySteps)[0],
       totalSteps: Object.values(dailySteps).reduce((a, b) => a + b, 0)
     });
