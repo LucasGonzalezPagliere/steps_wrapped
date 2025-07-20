@@ -182,6 +182,12 @@ fileInput.addEventListener("change", async (e) => {
   if (!file) return;
 
   try {
+    console.log("File selected:", {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+
     // Show loading indicator
     landing.classList.add("hidden");
     const loadingEl = document.createElement("div");
@@ -195,24 +201,37 @@ fileInput.addEventListener("change", async (e) => {
     let xmlText;
     
     if (file.name.endsWith('.zip')) {
-      // Handle ZIP file
-      const zipBlob = await file.arrayBuffer();
-      const zip = await JSZip.loadAsync(zipBlob);
-      
-      // Try to find export.xml in the root or in apple_health_export/
-      let xmlFile = zip.file("export.xml") || zip.file("apple_health_export/export.xml");
-      
-      if (!xmlFile) {
-        throw new Error("Could not find export.xml in the ZIP file. Make sure you're uploading the correct export from Apple Health.");
+      console.log("Processing ZIP file...");
+      try {
+        // Handle ZIP file
+        const zipBlob = await file.arrayBuffer();
+        console.log("ZIP blob loaded, size:", zipBlob.byteLength);
+        
+        const zip = await JSZip.loadAsync(zipBlob);
+        console.log("ZIP loaded, files found:", Object.keys(zip.files));
+        
+        // Try to find export.xml in the root or in apple_health_export/
+        let xmlFile = zip.file("export.xml") || zip.file("apple_health_export/export.xml");
+        
+        if (!xmlFile) {
+          console.error("XML file not found in ZIP. Available files:", Object.keys(zip.files));
+          throw new Error("Could not find export.xml in the ZIP file. Make sure you're uploading the correct export from Apple Health.");
+        }
+        
+        console.log("Found XML file in ZIP, extracting...");
+        xmlText = await xmlFile.async("string");
+        console.log("XML extracted, length:", xmlText.length);
+      } catch (zipError) {
+        console.error("ZIP processing error:", zipError);
+        throw zipError;
       }
-      
-      xmlText = await xmlFile.async("string");
-      console.log("Successfully extracted XML from ZIP");
     } else {
-      // Handle direct XML file
+      console.log("Processing XML file directly...");
       xmlText = await file.text();
+      console.log("XML loaded, length:", xmlText.length);
     }
 
+    console.log("Parsing XML...");
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlText, "text/xml");
     
@@ -230,10 +249,10 @@ fileInput.addEventListener("change", async (e) => {
     
     const stepRecords = records.filter(record => {
       const type = record.getAttribute("type");
-      if (type !== STEP_TYPE) return false;
-      
       const startDate = new Date(record.getAttribute("startDate"));
-      return startDate >= yearAgo;
+      const isStep = type === STEP_TYPE;
+      const isRecent = startDate >= yearAgo;
+      return isStep && isRecent;
     });
     
     console.log(`Found ${stepRecords.length} step records in last year`);
@@ -241,60 +260,37 @@ fileInput.addEventListener("change", async (e) => {
     // Aggregate steps by day
     const dailySteps = {};
     for (const record of stepRecords) {
-      const startDate = record.getAttribute("startDate");
-      const day = normalizeDate(startDate);
+      const day = record.getAttribute("startDate").split('T')[0];
       const steps = Number(record.getAttribute("value"));
-      
-      if (!dailySteps[day]) {
-        dailySteps[day] = 0;
-      }
-      dailySteps[day] += steps;
+      dailySteps[day] = (dailySteps[day] || 0) + steps;
     }
     
-    // Log some stats about the data
-    const days = Object.keys(dailySteps).sort();
-    const totalSteps = Object.values(dailySteps).reduce((a, b) => a + b, 0);
-    console.log('Data summary:', {
-      numberOfDays: days.length,
-      dateRange: `${days[0]} to ${days[days.length-1]}`,
-      totalSteps,
-      averageSteps: Math.round(totalSteps / days.length)
+    console.log('Daily steps object:', {
+      numberOfDays: Object.keys(dailySteps).length,
+      sampleDay: Object.entries(dailySteps)[0],
+      totalSteps: Object.values(dailySteps).reduce((a, b) => a + b, 0)
     });
-    
-    // Show top 5 days
-    const topDays = Object.entries(dailySteps)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([date, steps]) => `${date}: ${steps.toLocaleString()} steps`);
-    console.log('Top 5 days:', topDays);
 
-    // Sample of daily totals to verify aggregation
-    const sampleDays = Object.entries(dailySteps)
-      .slice(0, 5)
-      .map(([date, steps]) => `${date}: ${steps.toLocaleString()} steps`);
-    console.log('Sample of daily totals:', sampleDays);
-
-    // Calculate power hour
-    const powerHour = findPowerHour(stepRecords);
-    
-    // Calculate streaks and achievements
-    const streak = findLongestStreak(dailySteps);
-    const totalMiles = totalSteps * MILES_PER_STEP;
-    const totalCalories = (totalSteps / 1000) * CALORIES_PER_1000_STEPS;
+    // Calculate additional metrics
+    const totalMiles = Object.values(dailySteps).reduce((a, b) => a + b, 0) * MILES_PER_STEP;
+    const totalCalories = (Object.values(dailySteps).reduce((a, b) => a + b, 0) / 1000) * CALORIES_PER_1000_STEPS;
     const pizzaSlices = Math.round(totalCalories / CALORIES_PER_PIZZA_SLICE);
     const carTrips = Math.round(totalMiles / MILES_PER_CAR_TRIP);
     const marathons = (totalMiles / MILES_PER_MARATHON).toFixed(1);
-    
-    // Calculate activity level
-    const avgDailySteps = totalSteps / Object.keys(dailySteps).length;
-    const activityBadge = getActivityBadge(avgDailySteps);
-    
+
     // Find distance fact
     const distanceFact = DISTANCE_FACTS.find(d => totalMiles <= d.threshold)?.fact || DISTANCE_FACTS[0].fact;
 
-    // Convert to facts and chart data
+    // Find longest streak
+    const streak = findLongestStreak(dailySteps);
+    console.log('Streak data:', streak);
+
+    // Calculate activity level
+    const avgDailySteps = Object.values(dailySteps).reduce((a, b) => a + b, 0) / Object.keys(dailySteps).length;
+    const activityBadge = getActivityBadge(avgDailySteps);
+    
+    // Generate facts
     const facts = generateWrappedFacts(dailySteps, {
-      powerHour,
       streak,
       totalMiles,
       distanceFact,
@@ -304,7 +300,6 @@ fileInput.addEventListener("change", async (e) => {
       marathons,
       activityBadge
     });
-    const dowSeries = generateDayOfWeekSeries(dailySteps);
     
     // Remove loading indicator
     loadingEl.remove();
@@ -312,7 +307,11 @@ fileInput.addEventListener("change", async (e) => {
     buildSlides(facts);
     startSlideshow();
   } catch (err) {
-    console.error(err);
+    console.error("Full error details:", {
+      message: err.message,
+      stack: err.stack,
+      type: err.name
+    });
     alert("Failed to parse file: " + err.message);
     // Clean up on error
     document.querySelector(".loading-container")?.remove();
