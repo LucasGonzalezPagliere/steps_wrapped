@@ -64,43 +64,56 @@ function getActivityBadge(avgSteps) {
   return "Getting Started 🌱";
 }
 
-// Calculate consistency score (0-100)
+// Calculate consistency score (0-100) with safe defaults
 function calculateConsistencyScore(dailySteps) {
-  const values = Object.values(dailySteps);
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
-  const stdDev = Math.sqrt(variance);
-  const coefficientOfVariation = (stdDev / mean) * 100;
-  
-  // Convert CV to a 0-100 score (lower CV = higher consistency)
-  // CV of 0% = perfect consistency = 100 score
-  // CV of 100% or more = 0 score
-  const score = Math.max(0, Math.min(100, 100 - coefficientOfVariation));
-  return Math.round(score);
+  try {
+    const values = Object.values(dailySteps);
+    if (values.length === 0) return 0;
+    
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    if (mean === 0) return 0;
+    
+    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+    const coefficientOfVariation = (stdDev / mean) * 100;
+    
+    const score = Math.max(0, Math.min(100, 100 - coefficientOfVariation));
+    return Math.round(score);
+  } catch (error) {
+    console.error('Error calculating consistency score:', error);
+    return 0;
+  }
 }
 
-// Find best month
+// Find best month with safe defaults
 function findBestMonth(dailySteps) {
-  const monthlySteps = {};
-  const monthlyDays = {};
-  
-  Object.entries(dailySteps).forEach(([date, steps]) => {
-    const monthKey = date.slice(0, 7); // YYYY-MM
-    monthlySteps[monthKey] = (monthlySteps[monthKey] || 0) + steps;
-    monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
-  });
-  
-  const monthlyAverages = Object.entries(monthlySteps).map(([month, steps]) => ({
-    month,
-    average: steps / monthlyDays[month]
-  }));
-  
-  const bestMonth = monthlyAverages.reduce((a, b) => 
-    b.average > a.average ? b : a
-  );
-  
-  const date = new Date(bestMonth.month + '-01');
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  try {
+    const monthlySteps = {};
+    const monthlyDays = {};
+    
+    Object.entries(dailySteps).forEach(([date, steps]) => {
+      const monthKey = date.slice(0, 7); // YYYY-MM
+      monthlySteps[monthKey] = (monthlySteps[monthKey] || 0) + steps;
+      monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
+    });
+    
+    if (Object.keys(monthlySteps).length === 0) return null;
+    
+    const monthlyAverages = Object.entries(monthlySteps).map(([month, steps]) => ({
+      month,
+      average: steps / monthlyDays[month]
+    }));
+    
+    const bestMonth = monthlyAverages.reduce((a, b) => 
+      b.average > a.average ? b : a
+    , monthlyAverages[0]);
+    
+    const date = new Date(bestMonth.month + '-01');
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  } catch (error) {
+    console.error('Error finding best month:', error);
+    return null;
+  }
 }
 
 // Find the most active hour
@@ -311,102 +324,114 @@ function generateWrappedFacts(dailySteps, additionalData) {
   const days = Object.keys(dailySteps).sort();
   if (days.length === 0) return ["No step data found in the last 12 months"];
   
-  const totalSteps = Object.values(dailySteps).reduce((a, b) => a + b, 0);
-  const avgSteps = Math.round(totalSteps / days.length);
-  
-  // Find best day
-  const bestDay = Object.entries(dailySteps)
-    .reduce((a, b) => (b[1] > a[1] ? b : a));
-  
-  // Format the date nicely
-  const bestDayDate = new Date(bestDay[0]);
-  const bestDayFormatted = bestDayDate.toLocaleDateString('en-US', { 
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  try {
+    const totalSteps = Object.values(dailySteps).reduce((a, b) => a + b, 0);
+    const avgSteps = Math.round(totalSteps / days.length);
     
-  // Calculate day of week averages
-  const dowTotals = {};
-  const dowCounts = {};
-  for (const [date, steps] of Object.entries(dailySteps)) {
-    const dow = new Date(date).getDay();
-    dowTotals[dow] = (dowTotals[dow] || 0) + steps;
-    dowCounts[dow] = (dowCounts[dow] || 0) + 1;
-  }
-  
-  const dowAverages = {};
-  for (const dow in dowTotals) {
-    dowAverages[dow] = Math.round(dowTotals[dow] / dowCounts[dow]);
-  }
-  
-  const bestDow = Object.entries(dowAverages)
-    .reduce((a, b) => (b[1] > a[1] ? b : a));
+    // Find best day - add safe default
+    const bestDay = Object.entries(dailySteps)
+      .reduce((a, b) => (b[1] > a[1] ? b : a), [days[0], 0]);
     
-  const daysOver10k = Object.values(dailySteps)
-    .filter(steps => steps >= 10000).length;
-  const percentOver10k = Math.round((daysOver10k / days.length) * 100);
-  
-  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  
-  // Format streak dates
-  const streakStart = new Date(additionalData.streak.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const streakEnd = new Date(additionalData.streak.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  
-  // Get year range for title
-  const startYear = new Date(days[0]).getFullYear();
-  const endYear = new Date(days[days.length - 1]).getFullYear();
-  const yearRange = startYear === endYear ? `'${startYear.toString().slice(2)}` : `'${startYear.toString().slice(2)}-'${endYear.toString().slice(2)}`;
-  
-  // Calculate consistency score and best month
-  const consistencyScore = calculateConsistencyScore(dailySteps);
-  const bestMonth = findBestMonth(dailySteps);
-  
-  // Main stats
-  const mainStats = [
-    `🦶 You took ${totalSteps.toLocaleString()} steps in the last year!`,
-    `📈 That's an average of ${avgSteps.toLocaleString()} steps per day.`,
-    `🏆 Your best day was ${bestDayFormatted} with ${bestDay[1].toLocaleString()} steps!`,
-    `📅 You walk most on ${DAYS[bestDow[0]]}s (avg ${bestDow[1].toLocaleString()} steps)`,
-    {
-      text: `🎯 You hit 10,000+ steps on ${percentOver10k}% of days`,
-      progressBar: {
-        percent: percentOver10k,
-        color: '#1DB954'
-      }
-    },
-    `🔥 Longest streak of 6,500+ steps: ${additionalData.streak.length} days (${streakStart} → ${streakEnd})`,
-    `💪 You've walked ${Math.round(additionalData.totalMiles).toLocaleString()} miles...\n${additionalData.distanceFact}`,
-    {
-      impactStats: {
-        title: "🌟 The Impact of Your Steps",
+    // Format the date nicely
+    const bestDayDate = new Date(bestDay[0]);
+    const bestDayFormatted = bestDayDate.toLocaleDateString('en-US', { 
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+      
+    // Calculate day of week averages
+    const dowTotals = {};
+    const dowCounts = {};
+    for (const [date, steps] of Object.entries(dailySteps)) {
+      const dow = new Date(date).getDay();
+      dowTotals[dow] = (dowTotals[dow] || 0) + steps;
+      dowCounts[dow] = (dowCounts[dow] || 0) + 1;
+    }
+    
+    const dowAverages = {};
+    for (const dow in dowTotals) {
+      dowAverages[dow] = Math.round(dowTotals[dow] / dowCounts[dow]);
+    }
+    
+    // Add safe default for best day of week
+    const bestDow = Object.entries(dowAverages)
+      .reduce((a, b) => (b[1] > a[1] ? b : a), ['0', 0]);
+      
+    const daysOver10k = Object.values(dailySteps)
+      .filter(steps => steps >= 10000).length;
+    const percentOver10k = Math.round((daysOver10k / days.length) * 100);
+    
+    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    // Format streak dates with safe defaults
+    const streakStart = additionalData.streak.start ? 
+      new Date(additionalData.streak.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) :
+      'N/A';
+    const streakEnd = additionalData.streak.end ?
+      new Date(additionalData.streak.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) :
+      'N/A';
+    
+    // Get year range for title
+    const startYear = new Date(days[0]).getFullYear();
+    const endYear = new Date(days[days.length - 1]).getFullYear();
+    const yearRange = startYear === endYear ? 
+      `'${startYear.toString().slice(2)}` : 
+      `'${startYear.toString().slice(2)}-'${endYear.toString().slice(2)}`;
+    
+    // Calculate consistency score and best month with safe defaults
+    const consistencyScore = calculateConsistencyScore(dailySteps);
+    const bestMonth = findBestMonth(dailySteps) || 'N/A';
+    
+    // Main stats
+    const mainStats = [
+      `🦶 You took ${totalSteps.toLocaleString()} steps in the last year!`,
+      `📈 That's an average of ${avgSteps.toLocaleString()} steps per day.`,
+      `🏆 Your best day was ${bestDayFormatted} with ${bestDay[1].toLocaleString()} steps!`,
+      `📅 You walk most on ${DAYS[bestDow[0]]}s (avg ${bestDow[1].toLocaleString()} steps)`,
+      {
+        text: `🎯 You hit 10,000+ steps on ${percentOver10k}% of days`,
+        progressBar: {
+          percent: percentOver10k,
+          color: '#1DB954'
+        }
+      },
+      `🔥 Longest streak of 6,500+ steps: ${additionalData.streak.length || 0} days ${streakStart !== 'N/A' ? `(${streakStart} → ${streakEnd})` : ''}`,
+      `💪 You've walked ${Math.round(additionalData.totalMiles).toLocaleString()} miles...\n${additionalData.distanceFact}`,
+      {
+        impactStats: {
+          title: "🌟 The Impact of Your Steps",
+          stats: [
+            `🏃‍♂️ ${additionalData.marathons} marathons completed`,
+            `🍕 ${Math.round(additionalData.totalCalories).toLocaleString()} calories burned (${additionalData.pizzaSlices} pizzas!)`,
+            `🌱 CO2 from ${additionalData.carTrips} car trips saved`
+          ]
+        }
+      },
+      `📊 Your Achievements`
+    ];
+
+    // Format achievements as a single shareable slide
+    const achievementSlide = [{
+      shareableRecap: {
+        title: `My Steps Wrapped ${yearRange}`,
         stats: [
-          `🏃‍♂️ ${additionalData.marathons} marathons completed`,
-          `🍕 ${Math.round(additionalData.totalCalories).toLocaleString()} calories burned (${additionalData.pizzaSlices} pizzas!)`,
-          `🌱 CO2 from ${additionalData.carTrips} car trips saved`
+          `🚶‍♂️ Activity Level: ${additionalData.activityBadge}`,
+          `👣 Total Steps: ${totalSteps.toLocaleString()}`,
+          `💫 Best Day: ${bestDay[1].toLocaleString()} steps`,
+          `📅 Most Active: ${DAYS[bestDow[0]]}s`,
+          `📊 Consistency Score: ${consistencyScore}/100`,
+          `📈 Peak Performance: ${bestMonth}`
         ]
       }
-    },
-    `📊 Your Achievements`
-  ];
+    }];
 
-  // Format achievements as a single shareable slide
-  const achievementSlide = [{
-    shareableRecap: {
-      title: `My Steps Wrapped ${yearRange}`,
-      stats: [
-        `🚶‍♂️ Activity Level: ${additionalData.activityBadge}`,
-        `👣 Total Steps: ${totalSteps.toLocaleString()}`,
-        `💫 Best Day: ${bestDay[1].toLocaleString()} steps`,
-        `📅 Most Active: ${DAYS[bestDow[0]]}s`,
-        `📊 Consistency Score: ${consistencyScore}/100`,
-        `📈 Peak Performance: ${bestMonth}`
-      ]
-    }
-  }];
-
-  return [...mainStats, ...achievementSlide];
+    return [...mainStats, ...achievementSlide];
+  } catch (error) {
+    console.error('Error generating facts:', error);
+    return ["Sorry, there was an error processing your data. Please try again."];
+  }
 }
 
 function generateDayOfWeekSeries(dailySteps) {
