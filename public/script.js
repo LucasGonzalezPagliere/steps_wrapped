@@ -59,6 +59,23 @@ function isBeforeOrEqualDate(date1, date2) {
   return normalizeDate(date1) <= normalizeDate(date2);
 }
 
+// Helper function to get rolling 12 months window
+function getRollingYearWindow() {
+  const now = new Date();
+  // Set to first of current month
+  const endDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Go back 12 months and set to first of that month
+  const startDate = new Date(endDate);
+  startDate.setMonth(startDate.getMonth() - 11);
+  
+  return {
+    start: startDate,
+    end: endDate,
+    startStr: normalizeDate(startDate.toISOString()),
+    endStr: normalizeDate(endDate.toISOString())
+  };
+}
+
 // Helper to format hour range
 function formatHourRange(hour) {
   const start = hour % 12 || 12;
@@ -102,14 +119,13 @@ function findBestMonth(dailySteps) {
     const monthlySteps = {};
     const monthlyDays = {};
     
-    // Only consider complete months
-    const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+    // Get the valid date window
+    const dateWindow = getRollingYearWindow();
     
     Object.entries(dailySteps).forEach(([date, steps]) => {
       const monthKey = date.slice(0, 7); // YYYY-MM
-      // Skip current month as it might be incomplete
-      if (monthKey !== currentMonth) {
+      // Only include months in our window
+      if (monthKey >= dateWindow.startStr.slice(0, 7) && monthKey <= dateWindow.endStr.slice(0, 7)) {
         monthlySteps[monthKey] = (monthlySteps[monthKey] || 0) + steps;
         monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
       }
@@ -121,6 +137,11 @@ function findBestMonth(dailySteps) {
       month,
       average: steps / monthlyDays[month]
     }));
+    
+    console.log('Monthly averages:', monthlyAverages.map(m => ({
+      month: m.month,
+      average: Math.round(m.average)
+    })));
     
     const bestMonth = monthlyAverages.reduce((a, b) => 
       b.average > a.average ? b : a
@@ -257,15 +278,9 @@ fileInput.addEventListener("change", async (e) => {
     const records = Array.from(xmlDoc.getElementsByTagName("Record"));
     console.log(`Found ${records.length} total records`);
     
-    // Filter and process only step count records from last 12 months
-    const now = new Date();
-    const today = normalizeDate(now.toISOString());
-    const yearAgo = new Date(now);
-    yearAgo.setFullYear(now.getFullYear() - 1);
-    yearAgo.setHours(0, 0, 0, 0);
-    
-    const yearAgoStr = normalizeDate(yearAgo.toISOString());
-    console.log(`Filtering records between ${yearAgoStr} and ${today}`);
+    // Get date window for last 12 complete months
+    const dateWindow = getRollingYearWindow();
+    console.log('Processing date window:', dateWindow);
     
     const stepRecords = records.filter(record => {
       const type = record.getAttribute("type");
@@ -273,25 +288,22 @@ fileInput.addEventListener("change", async (e) => {
       
       const startDate = record.getAttribute("startDate");
       const normalizedDate = normalizeDate(startDate);
-      const isRecent = isSameOrAfterDate(startDate, yearAgo.toISOString());
-      const isNotFuture = isBeforeOrEqualDate(startDate, now.toISOString());
+      const isInWindow = normalizedDate >= dateWindow.startStr && normalizedDate <= dateWindow.endStr;
       
       // Debug log a sample of records
       if (Math.random() < 0.001) {
         console.log('Sample record:', {
           date: startDate,
           normalizedDate,
-          isRecent,
-          isNotFuture,
-          yearAgo: yearAgoStr,
-          today
+          isInWindow,
+          window: `${dateWindow.startStr} to ${dateWindow.endStr}`
         });
       }
       
-      return isRecent && isNotFuture;
+      return isInWindow;
     });
     
-    console.log(`Found ${stepRecords.length} step records in last year`);
+    console.log(`Found ${stepRecords.length} step records in date window`);
 
     // Aggregate steps by day
     const dailySteps = {};
@@ -304,7 +316,7 @@ fileInput.addEventListener("change", async (e) => {
     
     console.log('Daily steps object:', {
       numberOfDays: Object.keys(dailySteps).length,
-      dateRange: `${yearAgoStr} to ${today}`,
+      dateRange: `${dateWindow.startStr} to ${dateWindow.endStr}`,
       sampleDay: Object.entries(dailySteps)[0],
       totalSteps: Object.values(dailySteps).reduce((a, b) => a + b, 0)
     });
