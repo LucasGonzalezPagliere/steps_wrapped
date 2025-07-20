@@ -48,6 +48,11 @@ function normalizeDate(dateStr) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+// Helper function to compare dates ignoring time
+function isSameOrAfterDate(date1, date2) {
+  return normalizeDate(date1) >= normalizeDate(date2);
+}
+
 // Helper to format hour range
 function formatHourRange(hour) {
   const start = hour % 12 || 12;
@@ -245,14 +250,27 @@ fileInput.addEventListener("change", async (e) => {
     yearAgo.setFullYear(now.getFullYear() - 1);
     yearAgo.setHours(0, 0, 0, 0);
     
-    console.log(`Filtering records from ${yearAgo.toISOString()}`);
+    const yearAgoStr = normalizeDate(yearAgo);
+    console.log(`Filtering records from ${yearAgoStr}`);
     
     const stepRecords = records.filter(record => {
       const type = record.getAttribute("type");
-      const startDate = new Date(record.getAttribute("startDate"));
-      const isStep = type === STEP_TYPE;
-      const isRecent = startDate >= yearAgo;
-      return isStep && isRecent;
+      if (type !== STEP_TYPE) return false;
+      
+      const startDate = record.getAttribute("startDate");
+      const isRecent = isSameOrAfterDate(startDate, yearAgo);
+      
+      // Debug log a sample of records
+      if (Math.random() < 0.001) {
+        console.log('Sample record:', {
+          date: startDate,
+          normalizedDate: normalizeDate(startDate),
+          isRecent,
+          yearAgo: yearAgoStr
+        });
+      }
+      
+      return isRecent;
     });
     
     console.log(`Found ${stepRecords.length} step records in last year`);
@@ -260,7 +278,8 @@ fileInput.addEventListener("change", async (e) => {
     // Aggregate steps by day
     const dailySteps = {};
     for (const record of stepRecords) {
-      const day = record.getAttribute("startDate").split('T')[0];
+      const startDate = record.getAttribute("startDate");
+      const day = normalizeDate(startDate);
       const steps = Number(record.getAttribute("value"));
       dailySteps[day] = (dailySteps[day] || 0) + steps;
     }
