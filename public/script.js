@@ -417,18 +417,7 @@ function generateWrappedFacts(dailySteps, additionalData) {
         }
       },
       `🔥 Longest streak of 6,500+ steps: ${additionalData.streak.length || 0} days ${streakStart !== 'N/A' ? `(${streakStart} → ${streakEnd})` : ''}`,
-      `💪 You've walked ${Math.round(additionalData.totalMiles).toLocaleString()} miles...\n${additionalData.distanceFact}`,
-      {
-        impactStats: {
-          title: "🌟 The Impact of Your Steps",
-          stats: [
-            `🏃‍♂️ ${additionalData.marathons} marathons completed`,
-            `🍕 ${Math.round(additionalData.totalCalories).toLocaleString()} calories burned (${additionalData.pizzaSlices} pizzas!)`,
-            `🌱 CO2 from ${additionalData.carTrips} car trips saved`
-          ]
-        }
-      },
-      `📊 Your Achievements`
+      `💪 You've walked ${Math.round(additionalData.totalMiles).toLocaleString()} miles...\n${additionalData.distanceFact}`
     ];
 
     // Format achievements as a single shareable slide
