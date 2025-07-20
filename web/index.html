@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Steps Wrapped</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👣</text></svg>" />
+</head>
+<body>
+  <!-- Landing -->
+  <section id="landing" class="view">
+    <div class="landing-content">
+      <header>
+        <h1>Steps Wrapped</h1>
+        <p class="tagline">See your year in steps!</p>
+        <p class="security-note">
+          <span class="icon">🔒</span>
+          Data never leaves your device. 100% client-side processing.
+        </p>
+      </header>
+
+      <div class="instructions">
+        <h2>How to Export Your Data</h2>
+        
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Open Health App</h3>
+            <div class="image-container">
+              <img src="images/health_icon.jpg" alt="Health app icon" class="rounded-image" />
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Go to Your Profile</h3>
+            <div class="image-container">
+              <img src="images/find_profile.jpg" alt="Profile location" class="rounded-image" />
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Export Your Data</h3>
+            <div class="image-container">
+              <img src="images/find_export.jpg" alt="Export option" class="rounded-image" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="upload-container">
+        <label for="fileInput" class="upload-button">
+          Select Data
+          <input type="file" id="fileInput" accept=".xml,.zip" />
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slides container (hidden until ready) -->
+  <section id="slides" class="view hidden"></section>
+
+  <!-- Libraries -->
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Our app code -->
+  <script src="script.js"></script>
+</body>
+</html> 
