@@ -194,6 +194,7 @@ fileInput.addEventListener("change", async (e) => {
       }
       
       xmlText = await xmlFile.async("string");
+      console.log("Successfully extracted XML from ZIP");
     } else {
       // Handle direct XML file
       xmlText = await file.text();
