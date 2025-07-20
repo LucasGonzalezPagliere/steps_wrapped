@@ -427,6 +427,7 @@ function generateWrappedFacts(dailySteps, additionalData) {
         stats: [
           `🚶‍♂️ Activity Level: ${additionalData.activityBadge}`,
           `👣 Total Steps: ${totalSteps.toLocaleString()}`,
+          `📈 Daily Average: ${avgSteps.toLocaleString()} steps`,
           `💫 Best Day: ${bestDay[1].toLocaleString()} steps`,
           `📅 Most Active: ${DAYS[bestDow[0]]}s`,
           `📊 Consistency Score: ${consistencyScore}/100`,
