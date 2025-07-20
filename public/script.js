@@ -12,15 +12,19 @@ const MILES_PER_MARATHON = 26.2;
 
 // Famous walking distances (in miles)
 const DISTANCE_FACTS = [
-  { threshold: 100, fact: "That's like walking from San Francisco to Sacramento!" },
-  { threshold: 250, fact: "You've walked the length of California's coastline!" },
-  { threshold: 500, fact: "That's like walking from San Francisco to Los Angeles... and back!" },
-  { threshold: 750, fact: "You've walked the entire length of the Pacific Crest Trail!" },
-  { threshold: 1000, fact: "You've walked the length of the Appalachian Trail!" },
-  { threshold: 1500, fact: "That's like walking from New York to Las Vegas!" },
-  { threshold: 2000, fact: "You could have walked from Paris to Istanbul!" },
-  { threshold: 2500, fact: "You've walked the width of the United States!" },
-  { threshold: Infinity, fact: "You've walked enough to circle a quarter of the Earth!" }
+  { threshold: 50, fact: "That's like walking from Manhattan to The Bronx and back!" },
+  { threshold: 100, fact: "That's like walking from Boston to Providence!" },
+  { threshold: 200, fact: "You've walked the distance from New York City to Boston!" },
+  { threshold: 300, fact: "That's like walking from Los Angeles to Las Vegas!" },
+  { threshold: 400, fact: "You've walked the distance from Chicago to Detroit!" },
+  { threshold: 500, fact: "That's like walking from San Francisco to Los Angeles!" },
+  { threshold: 750, fact: "You've walked from Chicago to Nashville!" },
+  { threshold: 1000, fact: "That's like walking from New York City to Chicago!" },
+  { threshold: 1500, fact: "You've walked from Seattle to Los Angeles!" },
+  { threshold: 2000, fact: "That's like walking from New York to Miami!" },
+  { threshold: 2500, fact: "You've walked from Los Angeles to Chicago!" },
+  { threshold: 3000, fact: "That's like walking from Seattle to Miami!" },
+  { threshold: Infinity, fact: "You've walked across America... and then some!" }
 ];
 
 const fileInput = document.getElementById("fileInput");
