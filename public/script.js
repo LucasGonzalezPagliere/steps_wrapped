@@ -44,8 +44,9 @@ const COLORS = [
 
 // Helper function to normalize date to YYYY-MM-DD in local timezone
 function normalizeDate(dateStr) {
-  const date = new Date(dateStr);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  // Parse date string like "2024-10-01 19:24:04 -0700"
+  const [datePart] = dateStr.split(' ');
+  return datePart; // Already in YYYY-MM-DD format
 }
 
 // Helper function to compare dates ignoring time
@@ -250,7 +251,7 @@ fileInput.addEventListener("change", async (e) => {
     yearAgo.setFullYear(now.getFullYear() - 1);
     yearAgo.setHours(0, 0, 0, 0);
     
-    const yearAgoStr = normalizeDate(yearAgo);
+    const yearAgoStr = normalizeDate(yearAgo.toISOString());
     console.log(`Filtering records from ${yearAgoStr}`);
     
     const stepRecords = records.filter(record => {
@@ -258,7 +259,7 @@ fileInput.addEventListener("change", async (e) => {
       if (type !== STEP_TYPE) return false;
       
       const startDate = record.getAttribute("startDate");
-      const isRecent = isSameOrAfterDate(startDate, yearAgo);
+      const isRecent = isSameOrAfterDate(startDate, yearAgo.toISOString());
       
       // Debug log a sample of records
       if (Math.random() < 0.001) {
