@@ -62,11 +62,11 @@ function isBeforeOrEqualDate(date1, date2) {
 // Helper function to get rolling 12 months window
 function getRollingYearWindow() {
   const now = new Date();
-  // Set to first of current month
-  const endDate = new Date(now.getFullYear(), now.getMonth(), 1);
-  // Go back 12 months and set to first of that month
+  // Set end date to today
+  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Go back exactly 365 days
   const startDate = new Date(endDate);
-  startDate.setMonth(startDate.getMonth() - 11);
+  startDate.setDate(startDate.getDate() - 365);
   
   return {
     start: startDate,
@@ -121,27 +121,36 @@ function findBestMonth(dailySteps) {
     
     // Get the valid date window
     const dateWindow = getRollingYearWindow();
+    console.log('Finding best month in window:', dateWindow);
     
     Object.entries(dailySteps).forEach(([date, steps]) => {
-      const monthKey = date.slice(0, 7); // YYYY-MM
-      // Only include months in our window
-      if (monthKey >= dateWindow.startStr.slice(0, 7) && monthKey <= dateWindow.endStr.slice(0, 7)) {
-        monthlySteps[monthKey] = (monthlySteps[monthKey] || 0) + steps;
-        monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
-      }
+      // Group by month (YYYY-MM)
+      const monthKey = date.slice(0, 7);
+      monthlySteps[monthKey] = (monthlySteps[monthKey] || 0) + steps;
+      monthlyDays[monthKey] = (monthlyDays[monthKey] || 0) + 1;
     });
     
     if (Object.keys(monthlySteps).length === 0) return null;
     
-    const monthlyAverages = Object.entries(monthlySteps).map(([month, steps]) => ({
-      month,
-      average: steps / monthlyDays[month]
-    }));
+    // Calculate average steps per day for each month
+    const monthlyAverages = Object.entries(monthlySteps)
+      // Only include months with at least 15 days of data
+      .filter(([_, __, days = monthlyDays[_]]) => days >= 15)
+      .map(([month, steps]) => ({
+        month,
+        days: monthlyDays[month],
+        total: steps,
+        average: steps / monthlyDays[month]
+      }));
     
-    console.log('Monthly averages:', monthlyAverages.map(m => ({
+    console.log('Monthly stats:', monthlyAverages.map(m => ({
       month: m.month,
-      average: Math.round(m.average)
+      days: m.days,
+      average: Math.round(m.average),
+      total: m.total
     })));
+    
+    if (monthlyAverages.length === 0) return null;
     
     const bestMonth = monthlyAverages.reduce((a, b) => 
       b.average > a.average ? b : a
